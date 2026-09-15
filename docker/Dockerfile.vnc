@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1
+# ============================================================================
+# Conduit Desktop — Docker with noVNC (desktop app in browser)
+#
+# Builds the Flutter Linux desktop app and serves it via Xvfb + x11vnc + noVNC
+# so you can use the FULL conduit desktop app in any browser.
+# Aucune modification du code Flutter — toutes les fonctions natives
+# (notifications, micro, fichiers, TTS…) restent disponibles.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.yml --profile desktop up -d --build
+#   Browse to http://<host>:8080  (password par defaut : conduit123)
+# ============================================================================
+
+# ---- Stage 1 : Flutter builder ------------------------------------------------
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
+
+ENV PUB_CACHE=/opt/pub-cache \
+    PATH="$PATH:/opt/pub-cache/bin"
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl ca-certificates pkg-config cmake ninja-build libgtk-3-dev clang \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# Build Linux desktop binary (release)
+RUN flutter config --no-analytics || true \
+    && flutter pub get \
+    && dart run build_runner build --delete-conflicting-outputs \
+    && flutter build linux --release \
+    && strip build/linux/x64/release/bundle/conduit
+
+# ---- Stage 2 : Runtime (Xvfb + x11vnc + noVNC) --------------------------------
+FROM debian:bookworm-slim
+
+LABEL org.opencontainers.image.title="Conduit Desktop" \
+      org.opencontainers.image.description="Client Open WebUI / OpenAI / Ollama / Hermes" \
+      org.opencontainers.image.source="https://github.com/waryz184/conduit-desktop" \
+      org.opencontainers.image.licenses="GPL-3.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    DISPLAY=:99 \
+    VNC_PASSWORD=conduit123 \
+    DISPLAY_WIDTH=1280 \
+    DISPLAY_HEIGHT=800 \
+    HOME=/home/conduit
+
+# Runtime deps: Flutter Linux libs + VNC stack
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Flutter Linux runtime
+    libgtk-3-0 libx11-6 libxau6 libxcb1 libxdmcp6 libxext6 libxfixes3 \
+    libxi6 libxrender1 libxcursor1 libxcomposite1 libxdamage1 \
+    libxrandr1 libxtst6 libglib2.0-0 libpango-1.0-0 libpangocairo-1.0-0 \
+    libcairo2 libatk1.0-0 libatk-bridge2.0-0 libgdk-pixbuf-2.0-0 \
+    libnss3 libnspr4 libdbus-1-3 libatspi2.0-0 libdrm2 libgbm1 \
+    libasound2 libpulse0 \
+    # VNC + display stack
+    xvfb x11vnc novnc x11-xserver-utils tigervnc-common \
+    openbox \
+    curl ca-certificates fontconfig fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -d /home/conduit -s /bin/bash conduit \
+    && mkdir -p /home/conduit/.config/conduit
+
+# Copy the Flutter Linux app from builder
+COPY --from=builder /build/build/linux/x64/release/bundle /opt/conduit
+
+# Entrypoint
+COPY docker/scripts/entrypoint-vnc.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Persistent config (servers, tokens) between restarts
+VOLUME ["/home/conduit/.config/conduit"]
+
+EXPOSE 8080 5900
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD curl -s -o /dev/null http://127.0.0.1:6080/vnc.html?autoconnect=true || exit 1
+
+USER conduit
+ENTRYPOINT ["/entrypoint.sh"]

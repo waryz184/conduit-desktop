@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Conduit — client Open WebUI / OpenAI / Ollama / Hermes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Conduit">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="icons/Icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Conduit</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #0f1115; }
+    #loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #e8eaed;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px; letter-spacing: .02em; gap: 16px;
+    }
+    #loading .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.15); border-top-color: #6c8cff;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading .label { opacity: .7; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="label">Chargement de Conduit…</div>
+  </div>
+
+  <script>
+    // Copyright 2014 The Flutter Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license.
+    // The following line is only needed to work around https://github.com/flutter/flutter/issues/57
+    var FLUTTER_WEB_USE_SKIA = true;
+    var serviceWorkerVersion = null;
+    var scriptLoaded = false;
+    var entrypointUrl = "main.dart.js";
+    var loading = document.querySelector('#loading');
+    var config = null;
+
+    function _reloadConfig() {
+      config = {
+        assetBase: "",
+        serviceWorkerVersion: serviceWorkerVersion,
+      };
+    }
+
+    function _translateUrl(url) {
+      if (config && config.assetBase) {
+        return url.replace("assets/", config.assetBase + "assets/");
+      }
+      return url;
+    }
+
+    function _getAssetBase() {
+      return config ? config.assetBase : "";
+    }
+
+    function _getEntrypointUrl() {
+      return _translateUrl(entrypointUrl);
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

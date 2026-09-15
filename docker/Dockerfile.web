@@ -1,0 +1,72 @@
+# syntax=docker/dockerfile:1
+# ============================================================================
+# Conduit — Docker deployment (Flutter Web + Nginx)
+#
+# Multi-stage build:
+#   STAGE 1 : Flutter SDK -> build conduit for web
+#   STAGE 2 : nginx:alpine -> serve the static build
+#
+# Usage:
+#   docker build -f docker/Dockerfile -t conduit:latest .
+#   docker compose -f docker/docker-compose.yml up -d
+# ============================================================================
+
+# ---- Stage 1 : Flutter builder -------------------------------------------------
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
+
+ENV PUB_CACHE=/opt/pub-cache \
+    PATH="$PATH:/opt/pub-cache/bin"
+
+WORKDIR /build
+
+# System deps needed by some plugins at build time
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    pkg-config \
+    cmake \
+    ninja-build \
+    libgtk-3-dev \
+    clang \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# Generate web platform scaffolding if missing (idempotent)
+RUN if [ ! -d web ]; then \
+      flutter create --platforms=web . ; \
+    fi
+
+# Web-implementations for storage/notification plugins are pulled in by
+# the plugin's own web registration; pub get resolves them automatically.
+
+RUN flutter config --no-analytics || true
+
+# Dependencies + codegen (generated *.g.dart / *.freezed.dart are git-ignored)
+RUN flutter pub get \
+    && dart run build_runner build --delete-conflicting-outputs \
+    || (echo ">>> codegen failed; retrying with verbose output" && dart run build_runner build --delete-conflicting-outputs -v | tail -100)
+
+# Release build for web
+RUN flutter build web --release \
+    || (echo ">>> web build failed — see docs/WEB_BUILD.md for plugin fixes" && exit 1)
+
+# ---- Stage 2 : Nginx runtime ---------------------------------------------------
+FROM nginx:1.27-alpine
+
+LABEL org.opencontainers.image.title="Conduit" \
+      org.opencontainers.image.description="Client Open WebUI / OpenAI / Ollama / Hermes (web)" \
+      org.opencontainers.image.source="https://github.com/waryz184/conduit-desktop" \
+      org.opencontainers.image.licenses="GPL-3.0"
+
+# Nginx config + static build
+COPY docker/nginx/conduit.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /build/build/web /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,4 +1,4 @@
-<h1 align="center">Conduit</h1>
+<h1 align="center">Conduit Desktop</h1>
 
 <p align="center">
   <img
@@ -10,21 +10,23 @@
 </p>
 
 <p align="center">
-  <strong>A native mobile client for Open WebUI, your own model endpoints, and self-hosted agents.</strong>
+  <strong>Client desktop, mobile et web pour Open WebUI, vos propres endpoints LLM et agents auto-hébergés.</strong>
 </p>
 
 <p align="center">
-  <img
-    alt="Latest Release"
-    src="https://img.shields.io/github/v/release/cogwheel0/conduit?display_name=tag&color=0A84FF"
-  />
-  <img
-    alt="GitHub all downloads"
-    src="https://img.shields.io/github/downloads/cogwheel0/conduit/total?style=flat-square&label=Downloads&logo=github&color=111827"
-  />
+  <a href="https://github.com/waryz184/conduit-desktop">
+    <img
+      alt="GitHub Release"
+      src="https://img.shields.io/github/v/release/cogwheel0/conduit?display_name=tag&color=0A84FF"
+    />
+  </a>
   <img
     alt="License: GPL-3.0"
     src="https://img.shields.io/badge/License-GPL%203.0-16A34A"
+  />
+  <img
+    alt="Docker"
+    src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker"
   />
 </p>
 
@@ -48,36 +50,11 @@
 </p>
 
 <p align="center">
-  <a href="https://vercel.com/blog/vercel-open-source-program-fall-2025-cohort#conduit">
-    <img
-      alt="Vercel OSS Program"
-      src="https://vercel.com/oss/program-badge.svg"
-      width="240"
-      height="24"
-      align="middle"
-    />
-  </a>
-  &nbsp;
-  <a
-    href="https://trendshift.io/repositories/15397?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15397"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    <img
-      src="https://trendshift.io/api/badge/trendshift/repositories/15397/daily?language=Dart"
-      alt="cogwheel0/conduit: #1 Dart repository of the day on Trendshift"
-      width="200"
-      height="44"
-      align="middle"
-    />
-  </a>
-</p>
-
-<p align="center">
   <a href="#ways-to-connect">Connect</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="#what-you-get">Features</a> ·
   <a href="#getting-started">Getting Started</a> ·
+  <a href="#docker">Docker</a> ·
   <a href="#privacy">Privacy</a> ·
   <a href="docs/BUILDING.md">Build from Source</a>
 </p>
@@ -102,6 +79,59 @@ works with or without an Open WebUI server at all.
 
 Your chats live on your device first. Nothing routes through a backend the
 maintainer operates.
+
+---
+
+## 🐳 Docker
+
+Déployez Conduit sur votre serveur (Portainer, Docker Desktop, Docker Compose)
+et accédez-y depuis n'importe quel navigateur.
+
+### Profil `desktop` (recommandé)
+
+Build l'application Flutter pour Linux et la sert via **noVNC** dans le navigateur.
+Toutes les fonctionnalités natives sont conservées (notifications, micro,
+fichiers, TTS…). Aucune modification du code nécessaire.
+
+```bash
+git clone --recursive https://github.com/waryz184/conduit-desktop.git
+cd conduit-desktop
+docker compose -f docker/docker-compose.yml --profile desktop up -d --build
+```
+
+→ Ouvrir **http://localhost:6080/vnc.html** (mot de passe : `conduit123`)
+
+### Profil `web` (en chantier)
+
+Build la version Flutter Web servie par Nginx. Plus léger mais nécessite
+d'adapter certains plugins natifs pour la compatibilité navigateur.
+
+```bash
+docker compose -f docker/docker-compose.yml --profile web up -d --build
+```
+
+→ Ouvrir **http://localhost:8080**
+
+### Portainer
+
+1. **Stacks** → **Add stack**
+2. Copier le contenu de `docker/docker-compose.yml`
+3. Définir la variable d'environnement `COMPOSE_PROFILES=desktop`
+4. Déployer
+
+### Variables d'environnement
+
+| Variable | Défaut | Description |
+|----------|--------|-------------|
+| `VNC_PASSWORD` | `conduit123` | Mot de passe VNC |
+| `DISPLAY_WIDTH` | `1280` | Largeur écran virtuel |
+| `DISPLAY_HEIGHT` | `800` | Hauteur écran virtuel |
+
+> **Note** : le stockage sécurisé (`flutter_secure_storage`) sur web nécessite
+> HTTPS. Pour un déploiement en LAN, utilisez un reverse-proxy (Traefik, Caddy,
+> Nginx Proxy Manager) avec TLS.
+
+---
 
 ## Ways to connect
 
@@ -290,15 +320,29 @@ See **[docs/BUILDING.md](docs/BUILDING.md)** for requirements, submodules,
 codegen, verification, project layout, and troubleshooting.
 
 ```bash
-git clone --recursive https://github.com/cogwheel0/conduit.git
-cd conduit
+git clone --recursive https://github.com/waryz184/conduit-desktop.git
+cd conduit-desktop
 flutter pub get
 dart run build_runner build
-flutter run -d ios   # or: flutter run -d android
+flutter run -d linux   # Linux desktop
+flutter run -d ios     # iOS
+flutter run -d android # Android
 ```
 
 Clone recursively and run `build_runner`. The Mermaid renderer is a submodule,
 and generated Dart files are git-ignored.
+
+### Docker build
+
+```bash
+# Desktop app accessible via browser (noVNC)
+docker compose -f docker/docker-compose.yml --profile desktop up -d --build
+
+# Web build (experimental)
+docker compose -f docker/docker-compose.yml --profile web up -d --build
+```
+
+See [docker/README.md](docker/README.md) for detailed Docker usage.
 
 ## Contributing
 
@@ -310,6 +354,12 @@ Conduit is actively developed and feedback is welcome.
 
 Unsolicited pull requests are not the primary contribution path right now. Open
 an issue or discussion first so changes line up with the roadmap.
+
+## Upstream
+
+Ce dépôt est un fork de [cogwheel0/conduit](https://github.com/cogwheel0/conduit).
+Les fonctionnalités Docker sont spécifiques à ce fork. Merci à @cogwheel0 pour
+le travail en amont.
 
 ## Enterprise and white-label
 

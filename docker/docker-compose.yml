@@ -1,0 +1,71 @@
+# ============================================================================
+# Conduit Desktop — Docker Compose
+#
+# Deux profils de deploiement :
+#
+#   desktop (par defaut) — App Linux + noVNC dans le navigateur
+#     Toutes les fonctionnalites preservees (notifs, micro, fichiers, TTS).
+#     docker compose -f docker/docker-compose.yml up -d --build
+#
+#   web — Build Flutter Web + Nginx (plus leger, navigateur uniquement)
+#     Necessite d'adapter le code pour la compatibilite web.
+#     docker compose -f docker/docker-compose.yml --profile web up -d --build
+#
+# Acces :
+#   Desktop : http://localhost:6080/vnc.html  (mdp: conduit123)
+#   Web     : http://localhost:8080
+# ============================================================================
+
+services:
+  # ---- Profil desktop (VNC) : app Linux dans le navigateur -----------------
+  conduit-desktop:
+    profiles: ["desktop"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.vnc
+    image: conduit-desktop:latest
+    container_name: conduit
+    restart: unless-stopped
+    ports:
+      - "6080:6080"   # noVNC web client (HTTP)
+      - "5900:5900"   # VNC direct access (optionnel)
+    environment:
+      - VNC_PASSWORD=conduit123
+      - DISPLAY_WIDTH=1280
+      - DISPLAY_HEIGHT=800
+    volumes:
+      # Persistance : configurations des serveurs, auth, preferences
+      - conduit_data:/home/conduit/.config/conduit
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://127.0.0.1:6080/vnc.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "org.opencontainers.image.title=Conduit Desktop (VNC)"
+      - "org.opencontainers.image.description=Client Open WebUI / OpenAI / Ollama / Hermes"
+
+  # ---- Profil web (Flutter Web + Nginx) : plus leger mais code a adapter --
+  conduit-web:
+    profiles: ["web"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    image: conduit-web:latest
+    container_name: conduit-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "org.opencontainers.image.title=Conduit Web"
+      - "org.opencontainers.image.description=Client Open WebUI / OpenAI / Ollama / Hermes"
+
+volumes:
+  conduit_data:

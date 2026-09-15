@@ -1,0 +1,51 @@
+# Conduit Docker build context — ignore everything not needed for build
+
+# Version control
+.git/
+.gitattributes
+.gitignore
+.gitmodules
+
+# IDE
+.idea/
+.vscode/
+
+# Platform-specific build artifacts
+android/
+ios/
+macos/
+windows/
+build/
+*.iml
+
+# Dependencies
+.pub-cache/
+.pub/
+.dart_tool/
+
+# Generated code (re-generated during Docker build codegen step)
+*.g.dart
+*.freezed.dart
+lib/l10n/app_localizations.dart
+lib/l10n/app_localizations_*.dart
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Third-party reference repos (vendored for API docs only — not built)
+hermes-src/
+openwebui-src/
+
+# Tests (not needed for production build)
+test/
+
+# Docs and CI
+docs/
+.github/
+tool/
+
+# Local scratch
+*.log
+*.tmp
