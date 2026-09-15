@@ -13,7 +13,7 @@
 # ============================================================================
 
 # ---- Stage 1 : Flutter builder ------------------------------------------------
-FROM debian:bookworm-slim AS builder
+FROM debian:trixie-slim AS builder
 
 ENV FLUTTER_VERSION=3.47.3 \
     FLUTTER_HOME=/opt/flutter \
@@ -28,11 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwebkit2gtk-4.1-dev \
     && rm -rf /var/lib/apt/lists/* \
     # flutter_inappwebview_linux CMakeLists looks for wpewebkit-1.0.pc
-    # but Debian bookworm ships wpewebkit-2.0. Create a compat symlink.
+    # but trixie ships wpewebkit-2.0. Create a compat symlink.
     && if ! pkg-config --exists wpewebkit-1.0 2>/dev/null; then \
          PC_FILE=$(find /usr/lib /usr/share -name 'wpewebkit-*.pc' 2>/dev/null | head -1); \
          if [ -n "$PC_FILE" ]; then \
-           ln -sf "$PC_FILE" "$(dirname $PC_FILE)/wpewebkit-1.0.pc"; \
+           ln -sf "$PC_FILE" "$(dirname "$PC_FILE")/wpewebkit-1.0.pc"; \
          fi; \
        fi
 
@@ -57,7 +57,7 @@ RUN flutter create --platforms=linux . \
     && strip build/linux/x64/release/bundle/conduit
 
 # ---- Stage 2 : Runtime (Xvfb + x11vnc + noVNC) --------------------------------
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 LABEL org.opencontainers.image.title="Conduit Desktop" \
       org.opencontainers.image.description="Client Open WebUI / OpenAI / Ollama / Hermes" \
