@@ -24,6 +24,7 @@ ENV FLUTTER_VERSION=3.47.3 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git unzip xz-utils ca-certificates \
     pkg-config cmake ninja-build libgtk-3-dev clang \
+    libwpewebkit-1.0-dev libwebkit2gtk-4.1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install Flutter SDK (stable channel, pinned version)
