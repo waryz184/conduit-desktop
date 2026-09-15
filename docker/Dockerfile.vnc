@@ -39,8 +39,9 @@ WORKDIR /build
 
 COPY . .
 
-# Build Linux desktop binary (release)
-RUN flutter pub get \
+# Enable Linux desktop platform (not created by upstream)
+RUN flutter create --platforms=linux . \
+    && flutter pub get \
     && dart run build_runner build --delete-conflicting-outputs \
     && flutter build linux --release \
     && strip build/linux/x64/release/bundle/conduit
