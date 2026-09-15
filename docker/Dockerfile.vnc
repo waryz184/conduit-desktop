@@ -9,26 +9,37 @@
 #
 # Usage:
 #   docker compose -f docker/docker-compose.yml --profile desktop up -d --build
-#   Browse to http://<host>:8080  (password par defaut : conduit123)
+#   Browse to http://<host>:6080/vnc.html  (password par defaut : conduit123)
 # ============================================================================
 
 # ---- Stage 1 : Flutter builder ------------------------------------------------
-FROM ghcr.io/cirruslabs/flutter:stable AS builder
+FROM debian:bookworm-slim AS builder
 
-ENV PUB_CACHE=/opt/pub-cache \
-    PATH="$PATH:/opt/pub-cache/bin"
+ENV FLUTTER_VERSION=3.47.3 \
+    FLUTTER_HOME=/opt/flutter \
+    PUB_CACHE=/opt/pub-cache \
+    PATH="/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:/opt/pub-cache/bin:$PATH"
+
+# System deps: build tools + Flutter Linux build deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git unzip xz-utils ca-certificates \
+    pkg-config cmake ninja-build libgtk-3-dev clang \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Flutter SDK (stable channel, pinned version)
+RUN curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+    -o /tmp/flutter.tar.xz \
+    && tar -xf /tmp/flutter.tar.xz -C /opt \
+    && rm -f /tmp/flutter.tar.xz \
+    && flutter config --no-analytics \
+    && flutter precache --no-android --no-ios --no-web
 
 WORKDIR /build
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl ca-certificates pkg-config cmake ninja-build libgtk-3-dev clang \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 
 # Build Linux desktop binary (release)
-RUN flutter config --no-analytics || true \
-    && flutter pub get \
+RUN flutter pub get \
     && dart run build_runner build --delete-conflicting-outputs \
     && flutter build linux --release \
     && strip build/linux/x64/release/bundle/conduit
@@ -75,10 +86,10 @@ RUN chmod +x /entrypoint.sh
 # Persistent config (servers, tokens) between restarts
 VOLUME ["/home/conduit/.config/conduit"]
 
-EXPOSE 8080 5900
+EXPOSE 6080 5900
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD curl -s -o /dev/null http://127.0.0.1:6080/vnc.html?autoconnect=true || exit 1
+  CMD curl -s -o /dev/null http://127.0.0.1:6080/vnc.html || exit 1
 
 USER conduit
 ENTRYPOINT ["/entrypoint.sh"]
